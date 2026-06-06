@@ -198,6 +198,9 @@ jobs:
         if [ -f $GITHUB_WORKSPACE/KernelSU/patch/02.fix_restore\ cgroup\ file\ prefix\ handling\ .patch ]; then
           patch -p1 < "$GITHUB_WORKSPACE/KernelSU/patch/02.fix_restore cgroup file prefix handling .patch" || echo "Warning: patch 02 may already be applied"
         fi
+        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch ]; then
+          patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch || echo "Warning: patch 03 may already be applied"
+        fi
         echo "DroidSpaces patches applied successfully."
 
     - name: 关闭ANDROID_PARANOID_NETWORK配置

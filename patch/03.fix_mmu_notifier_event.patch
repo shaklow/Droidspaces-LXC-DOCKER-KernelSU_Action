@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kernel-builder <builder@github.com>
+Date: Fri, 6 Jun 2026 00:00:00 +0000
+Subject: [PATCH] fix: add forward declaration for enum mmu_notifier_event
+
+Fix Clang compilation error on kernel 4.19 with KVM enabled:
+  variable has incomplete type 'enum mmu_notifier_event'
+
+Signed-off-by: kernel-builder <builder@github.com>
+---
+ include/linux/mmu_notifier.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 1b61c2a90..f8e1c3c45 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -343,6 +343,8 @@ static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm)
+ 	return 0;
+ }
+ 
++enum mmu_notifier_event;
++
+ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
+ 		unsigned long address, pte_t pte)
+ {
