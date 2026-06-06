@@ -286,7 +286,9 @@ jobs:
         sed -i 's/kvm_unmap_hva_range(kvm, range->start, range->end)/kvm_unmap_hva_range(kvm, range->start, range->end, 0)/' virt/kvm/kvm_main.c
         sed -i 's/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, \&ptep, NULL, \&ptl)/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, \&ptl)/' virt/kvm/kvm_main.c
         # 定义缺失的 MMU_NOTIFY_UNMAP（kernel 4.19 未定义此枚举值）
-        sed -i '/#define _LINUX_MMU_NOTIFIER_H/ a\#define MMU_NOTIFY_UNMAP 0' include/linux/mmu_notifier.h
+        sed -i '/#define _LINUX_MMU_NOTIFIER_H/ a\#define MMU_NOTIFY_UNMAP 0\n#define MMU_NOTIFY_CLEAR 1' include/linux/mmu_notifier.h
+        # 修复 lockdep: __lock_release 新增 nested 参数未声明
+        sed -i 's/__lock_release(lock, nested, ip)/__lock_release(lock, 0, ip)/' kernel/locking/lockdep.c
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
