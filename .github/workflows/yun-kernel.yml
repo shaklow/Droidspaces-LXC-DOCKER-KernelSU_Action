@@ -265,6 +265,8 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+        # 移除旧版 ld，避免与 Ubuntu 24.04 glibc 不兼容
+        rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
