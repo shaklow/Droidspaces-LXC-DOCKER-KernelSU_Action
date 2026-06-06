@@ -201,6 +201,9 @@ jobs:
         if [ -f $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch ]; then
           patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch || echo "Warning: patch 03 may already be applied"
         fi
+        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/04.fix_vdso_ld_n_flag.patch ]; then
+          patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/04.fix_vdso_ld_n_flag.patch || echo "Warning: patch 04 may already be applied"
+        fi
         echo "DroidSpaces patches applied successfully."
 
     - name: 关闭ANDROID_PARANOID_NETWORK配置

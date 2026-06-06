@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kernel-builder <builder@github.com>
+Date: Fri, 6 Jun 2026 00:00:00 +0000
+Subject: [PATCH] fix: replace -n with --nmagic for LLD compatibility
+
+LLD does not support the -n linker flag (deprecated alias).
+Use --nmagic instead to suppress page alignment of VDSO sections.
+
+Signed-off-by: kernel-builder <builder@github.com>
+---
+ arch/arm64/kernel/vdso/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/kernel/vdso/Makefile b/arch/arm64/kernel/vdso/Makefile
+index f6e25d7da..a8b8c6e12 100644
+--- a/arch/arm64/kernel/vdso/Makefile
++++ b/arch/arm64/kernel/vdso/Makefile
+@@ -22,7 +22,7 @@ ldflags-y = -shared -nostdlib -soname=linux-vdso.so.1 \
+ 	   $(btildflags-y) -T
+ 
+ ccflags-y := -fno-common -fno-builtin -fno-stack-protector
+-ldflags-y += -n
++ldflags-y += --nmagic
+ 
+ # Force dependency
+ $(obj)/vdso.o : $(obj)/vdso.so
