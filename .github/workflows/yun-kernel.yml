@@ -274,7 +274,7 @@ jobs:
         # 移除旧版 ld，避免与 Ubuntu 24.04 glibc 不兼容
         rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
         # 修复 VDSO -n 参数兼容 LLD
-        sed -i 's/ldflags-y += -n/ldflags-y += --nmagic/' arch/arm64/kernel/vdso/Makefile
+        sed -i 's/ -n -T/ --nmagic -T/' arch/arm64/kernel/vdso/Makefile
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
