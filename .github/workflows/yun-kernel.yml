@@ -275,6 +275,9 @@ jobs:
         rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
         # 修复 VDSO -n 参数兼容 LLD（移除不支持的 flag）
         sed -i 's/ -n -T/ -T/' arch/arm64/kernel/vdso/Makefile
+        # 修复 VDSO32 -z common-page-size 兼容旧 LLD
+        sed -i 's/-z common-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
+        sed -i 's/-z max-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
