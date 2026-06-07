@@ -281,13 +281,7 @@ jobs:
         # 修复 head.S: .ascii 不支持 \x 转义
         sed -i 's/\\x64"/d"/' arch/arm64/kernel/head.S
         # 修复 sha1-ce-core.S: 旧 Clang 不支持重定位修饰符（替换为空桩）
-        cat > arch/arm64/crypto/sha1-ce-core.S << 'EOF'
-/* Stub - disabled for Clang compat */
-.text
-.globl sha1_ce_transform
-sha1_ce_transform:
-    ret
-EOF
+        printf '.text\n.globl sha1_ce_transform\nsha1_ce_transform:\n    ret\n' > arch/arm64/crypto/sha1-ce-core.S
         # 修复 KVM API 不匹配（backport 冲突）
         sed -i 's/kvm_unmap_hva_range(kvm, range->start, range->end)/kvm_unmap_hva_range(kvm, range->start, range->end, 0)/' virt/kvm/kvm_main.c
         sed -i 's/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, \&ptep, NULL, \&ptl)/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, \&ptl)/' virt/kvm/kvm_main.c
