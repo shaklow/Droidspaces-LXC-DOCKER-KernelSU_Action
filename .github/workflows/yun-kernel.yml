@@ -293,8 +293,8 @@ jobs:
         sed -i 's/WRITE_ONCE(current->fail_nth, fail_nth - 1)/(current->fail_nth = fail_nth - 1)/' lib/fault-inject.c
         # 修复 KernelSU: MODULE_IMPORT_NS 在 kernel 4.19 不存在
         echo '#define MODULE_IMPORT_NS(ns)' >> include/linux/module.h
-        # 跳过有 DTS bug 的非目标板子
-        sed -i '/qrb5165/d' arch/arm64/boot/dts/vendor/qcom/Makefile
+        # 跳过有 DTS bug 的非目标板子（fsa4480 标签冲突）
+        sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
