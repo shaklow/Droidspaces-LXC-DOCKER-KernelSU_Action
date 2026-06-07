@@ -296,8 +296,12 @@ jobs:
         # 跳过有 DTS bug 的非目标板子（fsa4480 标签冲突）
         sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
         # 定义缺失的 tracepoint 符号
-        echo 'int __tracepoint_android_vh_set_memory_x;' > kernel/trace/stub-vendor-hooks.c
+        printf 'int __tracepoint_android_vh_set_memory_x;\nint __tracepoint_android_vh_set_memory_rw;\nint __tracepoint_android_vh_set_memory_nx;\n' > kernel/trace/stub-vendor-hooks.c
         echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
+        # 修复 EFI stub LLD 重定位（去掉 ABSOLUTE）
+        sed -i 's/ABSOLUTE(__efistub__text)/__efistub__text/' arch/arm64/kernel/vmlinux.lds.S
+        sed -i 's/ABSOLUTE(__efistub__edata)/__efistub__edata/' arch/arm64/kernel/vmlinux.lds.S
+        sed -i 's/ABSOLUTE(__efistub__end)/__efistub__end/' arch/arm64/kernel/vmlinux.lds.S
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
