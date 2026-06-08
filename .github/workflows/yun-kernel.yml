@@ -76,6 +76,36 @@ jobs:
         sudo apt-get install binutils binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python3
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
 
+    # ========== 缓存：工具链（config.env 变更时自动刷新） ==========
+    - name: Cache toolchains (Clang + GCC)
+      id: cache-tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ github.workspace }}/kernel_workspace/clang-aosp
+          ${{ github.workspace }}/kernel_workspace/gcc-64
+          ${{ github.workspace }}/kernel_workspace/gcc-32
+        key: toolchains-${{ hashFiles('KernelSU/config.env') }}
+
+    # ========== 缓存：内核源码 ==========
+    - name: Cache kernel source
+      id: cache-kernel
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/kernel_workspace/android-kernel
+        key: kernel-source-${{ hashFiles('KernelSU/config.env') }}
+
+    # ========== 缓存：boot 工具 ==========
+    - name: Cache boot tools
+      if: env.BUILD_BOOT_IMG == 'true'
+      id: cache-boot
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ github.workspace }}/kernel_workspace/tools
+          ${{ github.workspace }}/kernel_workspace/boot-source.img
+        key: boot-tools-${{ hashFiles('KernelSU/config.env') }}
+
     - name: 切换python2.7
       if: env.CUT_PYTHON == 'true'
       run: |
@@ -91,7 +121,7 @@ jobs:
         tar -C clang-aosp/ -zxvf clang-${{ env.CLANG_VERSION }}.tar.gz
 
     - name: 下载Custom-Clang编译器
-      if: env.USE_CUSTOM_CLANG == 'true'
+      if: env.USE_CUSTOM_CLANG == 'true' && steps.cache-tools.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         if [[ ${{ env.CUSTOM_CLANG_SOURCE }} =~ git ]]; then
@@ -109,45 +139,57 @@ jobs:
         fi
 
     - name: 下载Gcc-aosp编译器
-      if: env.METHOD_OK == 'A'
+      if: env.METHOD_OK == 'A' && steps.cache-tools.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        if [ ${{ env.METHOD_OK }} = A ]; then
-            mkdir gcc-64
-            wget -O gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
-            tar -C gcc-64/ -zxvf gcc-aarch64.tar.gz
-            echo "GCC_64=CROSS_COMPILE=$GITHUB_WORKSPACE/kernel_workspace/gcc-64/bin/aarch64-linux-android-" >> $GITHUB_ENV
-        fi
+        mkdir -p gcc-64
+        wget -O gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
+        tar -C gcc-64/ -zxvf gcc-aarch64.tar.gz
 
-        if [ ${{ env.METHOD_OK }} = A ]; then
-            mkdir gcc-32
-            wget -O gcc-arm.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
-            tar -C gcc-32/ -zxvf gcc-arm.tar.gz
-            echo "GCC_32=CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/kernel_workspace/gcc-32/bin/arm-linux-androideabi-" >> $GITHUB_ENV
-        fi
+        mkdir -p gcc-32
+        wget -O gcc-arm.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
+        tar -C gcc-32/ -zxvf gcc-arm.tar.gz
+
+    - name: 设置GCC交叉编译器环境变量
+      if: env.METHOD_OK == 'A'
+      run: |
+        echo "GCC_64=CROSS_COMPILE=$GITHUB_WORKSPACE/kernel_workspace/gcc-64/bin/aarch64-linux-android-" >> $GITHUB_ENV
+        echo "GCC_32=CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/kernel_workspace/gcc-32/bin/arm-linux-androideabi-" >> $GITHUB_ENV
 
     - name: 下载mkbootimg解包工具
-      if: env.BUILD_BOOT_IMG == 'true'
+      if: env.BUILD_BOOT_IMG == 'true' && steps.cache-boot.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone https://android.googlesource.com/platform/system/tools/mkbootimg tools -b master-kernel-build-2022 --depth=1
 
 
     - name: 下载直链内核镜像
-
-      if: env.BUILD_BOOT_IMG == 'true'
+      if: env.BUILD_BOOT_IMG == 'true' && steps.cache-boot.outputs.cache-hit != 'true'
       run: |
        cd $GITHUB_WORKSPACE/kernel_workspace
        wget -O boot-source.img ${{ env.SOURCE_BOOT_IMAGE }}
+
+    - name: 解析boot镜像参数
+      if: env.BUILD_BOOT_IMG == 'true'
+      run: |
+       cd $GITHUB_WORKSPACE/kernel_workspace
        if [ -f boot-source.img ]; then
-           echo "FORMAT_MKBOOTING=$(echo `tools/unpack_bootimg.py --boot_img=boot-source.img --format mkbootimg`)" >> $GITHUB_ENV
+           echo "FORMAT_MKBOOTING=$(tools/unpack_bootimg.py --boot_img=boot-source.img --format mkbootimg)" >> $GITHUB_ENV
            echo "HAVE_SOURCE_BOOT_IMAGE=true" >> $GITHUB_ENV
-           fi
-        
+       fi
+
     - name: 下载内核源码
+      if: steps.cache-kernel.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         git clone ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} android-kernel --depth=1
+
+    - name: 重置内核源码（缓存恢复后清理）
+      if: steps.cache-kernel.outputs.cache-hit == 'true'
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        git checkout -- . 2>/dev/null || true
+        git clean -fd 2>/dev/null || true
       
     - name: 开启KVM配置
       if: env.ENABLE_KVM == 'true'
