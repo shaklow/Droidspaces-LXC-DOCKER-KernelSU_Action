@@ -39,4 +39,12 @@ fi
 sed -i 's/^CONFIG_CGROUP_NET_PRIO=y/# CONFIG_CGROUP_NET_PRIO is not set (SM8350: no cgroup->id)/' $GITHUB_WORKSPACE/KernelSU/configs/droidspaces.config
 echo "  [06] sm8350: disabled CONFIG_CGROUP_NET_PRIO (cgroup struct lacks id field)"
 
+# ---- 7. KSU: stub probe_user_write (5.4 kernel lacks it, btrfs/KSU needs it) ----
+cat >> include/linux/uaccess.h << 'STUB'
+
+static inline int probe_user_write(void __user *dst, const void *src, size_t size)
+{ return copy_to_user(dst, src, size); }
+STUB
+echo "  [07] ksu: added probe_user_write stub for 5.4 kernel"
+
 echo "SM8350-5.4 fixes applied successfully."
