@@ -243,12 +243,21 @@ jobs:
           done
         fi
 
-        echo "Applying build compatibility patches..."
-        for p in "$PATCH_DIR/build-fixes/"*.patch; do
-          [ -f "$p" ] || continue
-          echo "  -> $(basename "$p")"
-          patch -p1 < "$p" || echo "Warning: $(basename "$p") may already be applied"
-        done
+        echo "Applying build compatibility fixes..."
+        sed -i 's/enum mmu_notifier_event event/unsigned long event/' include/linux/mmu_notifier.h
+        sed -i '/#define _LINUX_MMU_NOTIFIER_H/a #define MMU_NOTIFY_UNMAP 0\n#define MMU_NOTIFY_CLEAR 1' include/linux/mmu_notifier.h
+        sed -i 's/ -n -T/ -T/' arch/arm64/kernel/vdso/Makefile
+        sed -i 's/-z common-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
+        sed -i 's/-z max-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
+        sed -i 's/\\x64"/d"/' arch/arm64/kernel/head.S
+        printf '.text\n.globl sha1_ce_transform\nsha1_ce_transform:\n    ret\n' > arch/arm64/crypto/sha1-ce-core.S
+        sed -i 's/kvm_unmap_hva_range(kvm, range->start, range->end)/kvm_unmap_hva_range(kvm, range->start, range->end, 0)/' virt/kvm/kvm_main.c
+        sed -i 's/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, \&ptep, NULL, \&ptl)/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, \&ptl)/' virt/kvm/kvm_main.c
+        sed -i 's/__lock_release(lock, nested, ip)/__lock_release(lock, 0, ip)/' kernel/locking/lockdep.c
+        sed -i 's/WRITE_ONCE(current->fail_nth, fail_nth - 1)/(current->fail_nth = fail_nth - 1)/' lib/fault-inject.c
+        echo '#define MODULE_IMPORT_NS(ns)' >> include/linux/module.h
+        sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
+        sed -i '/^config EFI$/,/^config /{/default y/d}' arch/arm64/Kconfig
 
     - name: 关闭ANDROID_PARANOID_NETWORK配置
       if: env.ANDROID_PARANOID_NETWORK_OFF == 'true'
