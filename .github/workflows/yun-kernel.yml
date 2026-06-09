@@ -345,7 +345,7 @@ jobs:
         echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
         # 禁用 EFI（Android 手机内核不需要，且 EFI stub 与旧 LLD 不兼容）
         # CONFIG_EFI 在 arch/arm64/Kconfig 中有 default y，必须去掉才能通过 defconfig 禁用
-        sed -i '/config EFI/,/^config/{/default y/d}' arch/arm64/Kconfig
+        sed -i '/^config EFI$/,/^config /{/default y/d}' arch/arm64/Kconfig
         echo '# CONFIG_EFI is not set' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
