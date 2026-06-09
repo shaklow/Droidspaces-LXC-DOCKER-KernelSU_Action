@@ -54,6 +54,7 @@ jobs:
         cfg() { local k=$1 v="$2"; local cv=$(grep "^${k}=" KernelSU/config.env | head -n 1 | cut -d "=" -f 2); if [ -n "$cv" ]; then echo "${k}=${cv}" >> $GITHUB_ENV; elif [ -n "$v" ]; then echo "${k}=${v}" >> $GITHUB_ENV; else echo "${k}=false" >> $GITHUB_ENV; fi; }
         cfg "LXC_DOCKER" "${{ inputs.LXC_DOCKER }}"
         echo "METHOD_OK=$(cat KernelSU/config.env | grep -w "METHOD_OK" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "BUILD_FIXES=$(cat KernelSU/config.env | grep -w "BUILD_FIXES" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         cfg "ENABLE_KVM" "${{ inputs.ENABLE_KVM }}"
         echo "LXC_PATCH=$(cat KernelSU/config.env | grep -w "LXC_PATCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ANDROID_PARANOID_NETWORK_OFF=$(cat KernelSU/config.env | grep -w "ANDROID_PARANOID_NETWORK_OFF" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
@@ -263,21 +264,10 @@ jobs:
           done
         fi
 
-        echo "Applying build compatibility fixes..."
-        sed -i 's/enum mmu_notifier_event event/unsigned long event/' include/linux/mmu_notifier.h
-        sed -i '/#define _LINUX_MMU_NOTIFIER_H/a #define MMU_NOTIFY_UNMAP 0\n#define MMU_NOTIFY_CLEAR 1' include/linux/mmu_notifier.h
-        sed -i 's/ -n -T/ -T/' arch/arm64/kernel/vdso/Makefile
-        sed -i 's/-z common-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
-        sed -i 's/-z max-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
-        sed -i 's/\\x64"/d"/' arch/arm64/kernel/head.S
-        printf '.text\n.globl sha1_ce_transform\nsha1_ce_transform:\n    ret\n' > arch/arm64/crypto/sha1-ce-core.S
-        sed -i 's/kvm_unmap_hva_range(kvm, range->start, range->end)/kvm_unmap_hva_range(kvm, range->start, range->end, 0)/' virt/kvm/kvm_main.c
-        sed -i 's/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, \&ptep, NULL, \&ptl)/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, \&ptl)/' virt/kvm/kvm_main.c
-        sed -i 's/__lock_release(lock, nested, ip)/__lock_release(lock, 0, ip)/' kernel/locking/lockdep.c
-        sed -i 's/WRITE_ONCE(current->fail_nth, fail_nth - 1)/(current->fail_nth = fail_nth - 1)/' lib/fault-inject.c
-        echo '#define MODULE_IMPORT_NS(ns)' >> include/linux/module.h
-        sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
-        sed -i '/^config EFI$/,/^config /{/default y/d}' arch/arm64/Kconfig
+        echo "Applying build compatibility fixes (${{ env.BUILD_FIXES }})..."
+        if [ "${{ env.BUILD_FIXES }}" != "none" ] && [ -n "${{ env.BUILD_FIXES }}" ]; then
+          . $GITHUB_WORKSPACE/KernelSU/fixes/${{ env.BUILD_FIXES }}.sh
+        fi
 
     - name: 关闭ANDROID_PARANOID_NETWORK配置
       if: env.ANDROID_PARANOID_NETWORK_OFF == 'true'
@@ -342,8 +332,6 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
         rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
-        printf '#include <linux/lockdep.h>\nunsigned long __tracepoint_android_vh_set_memory_x;\nunsigned long __tracepoint_android_vh_set_memory_rw;\nunsigned long __tracepoint_android_vh_set_memory_nx;\nunsigned long __tracepoint_android_vh_set_memory_ro;\nunsigned long __tracepoint_android_vh_check_bpf_syscall;\nunsigned long __tracepoint_android_vh_check_mmap_file;\nunsigned long __tracepoint_android_vh_check_file_open;\nstruct lock_class_key rcu_trace_lock_map;\nint ps5169_cfg_usb;\n' > kernel/trace/stub-vendor-hooks.c
-        echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
