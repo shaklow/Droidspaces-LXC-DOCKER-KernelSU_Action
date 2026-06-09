@@ -351,9 +351,12 @@ jobs:
             if echo "$kver" | grep -q "^4\." ; then
                 sed -i 's/access_ok(\([^,)]*\), \([^)]*\))/access_ok(VERIFY_READ, \1, \2)/g' drivers/kernelsu/kpm/kpm.c
                 sed -i '1i#define REMAP_FILE_DEDUP 0' drivers/kernelsu/infra/file_wrapper.c
-                sed -i '/ksu_wrapper_iopoll/,/^}$/d' drivers/kernelsu/infra/file_wrapper.c
-                sed -i '/ksu_wrapper_remap_file_range/,/^}$/d' drivers/kernelsu/infra/file_wrapper.c
-                sed -i '/p->ops\.iopoll *=/d;/p->ops\.remap_file_range *=/d' drivers/kernelsu/infra/file_wrapper.c
+                awk '
+                  /^static int ksu_wrapper_iopoll/ || /^static loff_t ksu_wrapper_remap_file_range/ { skip=1; next }
+                  /p->ops\.iopoll/ || /p->ops\.remap_file_range/ { next }
+                  skip && /^[[:space:]]*}[[:space:]]*$/ { skip=0; next }
+                  !skip
+                ' drivers/kernelsu/infra/file_wrapper.c > /tmp/fw.c && mv /tmp/fw.c drivers/kernelsu/infra/file_wrapper.c
                 echo "  sukisu: applied 4.x compatibility fixes (kpm + file_wrapper)"
             fi
         fi
