@@ -35,4 +35,8 @@ else
     echo "  [05] tracepoint: already patched, skipping"
 fi
 
+# ---- 6. SM8350: cgroup net_prio needs cgroup->id which doesn't exist ----
+sed -i 's/^CONFIG_CGROUP_NET_PRIO=y/# CONFIG_CGROUP_NET_PRIO is not set (SM8350: no cgroup->id)/' $GITHUB_WORKSPACE/KernelSU/configs/droidspaces.config
+echo "  [06] sm8350: disabled CONFIG_CGROUP_NET_PRIO (cgroup struct lacks id field)"
+
 echo "SM8350-5.4 fixes applied successfully."
