@@ -4,6 +4,7 @@
 
 Automated kernel compilation via GitHub Actions with **KernelSU**, **DroidSpaces**, **LXC/Docker**, and **KVM** support.
 
+> ⚠️ Only supports **Non-GKI kernels** (4.19 / 4.14 / 4.9, etc.) — GKI 5.10+ not supported
 > Current target: **Xiaomi SM8250 (Snapdragon 865 / Kona)**
 
 ## Warning

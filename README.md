@@ -4,6 +4,7 @@
 
 基于 GitHub Actions 的自动化内核编译，集成 **KernelSU**、**DroidSpaces**、**LXC/Docker**、**KVM** 支持。
 
+> ⚠️ 仅支持 **Non-GKI 内核**（4.19 / 4.14 / 4.9 等传统内核），不支持 GKI 5.10+
 > 当前配置目标设备：**小米 SM8250 (骁龙865/Kona)**
 
 ##  警告

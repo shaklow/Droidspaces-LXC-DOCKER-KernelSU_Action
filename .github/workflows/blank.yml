@@ -2,8 +2,15 @@ name: 大容量云编译
 on:
   workflow_dispatch:
     inputs:
+      SU_TYPE:
+        description: 'Superuser 方案'
+        type: choice
+        options:
+          - kernelsu
+          - sukisu
+        default: 'kernelsu'
       ENABLE_KERNELSU:
-        description: '启用 KernelSU'
+        description: '启用 Superuser (KernelSU/SukiSU)'
         type: boolean
         default: true
       LXC_DOCKER:
@@ -31,6 +38,7 @@ jobs:
   build-kernel:
     uses: ./.github/workflows/yun-kernel.yml
     with:
+      SU_TYPE: ${{ inputs.SU_TYPE }}
       ENABLE_KERNELSU: ${{ inputs.ENABLE_KERNELSU }}
       LXC_DOCKER: ${{ inputs.LXC_DOCKER }}
       ENABLE_KVM: ${{ inputs.ENABLE_KVM }}
