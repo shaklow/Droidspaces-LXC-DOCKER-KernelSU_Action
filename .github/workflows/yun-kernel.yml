@@ -86,6 +86,7 @@ jobs:
           ${{ github.workspace }}/kernel_workspace/gcc-64
           ${{ github.workspace }}/kernel_workspace/gcc-32
         key: toolchains-${{ hashFiles('KernelSU/config.env') }}
+        save-always: true
 
     # ========== 缓存：内核源码 ==========
     - name: Cache kernel source
@@ -94,6 +95,7 @@ jobs:
       with:
         path: ${{ github.workspace }}/kernel_workspace/android-kernel
         key: kernel-source-${{ hashFiles('KernelSU/config.env') }}
+        save-always: true
 
     # ========== 缓存：boot 工具 ==========
     - name: Cache boot tools
@@ -105,6 +107,7 @@ jobs:
           ${{ github.workspace }}/kernel_workspace/tools
           ${{ github.workspace }}/kernel_workspace/boot-source.img
         key: boot-tools-${{ hashFiles('KernelSU/config.env') }}
+        save-always: true
 
     - name: 切换python2.7
       if: env.CUT_PYTHON == 'true'
@@ -338,11 +341,12 @@ jobs:
         # 跳过有 DTS bug 的非目标板子（fsa4480 标签冲突）
         sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
         # 定义缺失的 tracepoint 符号 + lockdep + ps5169
-        printf '#include <linux/lockdep.h>\nint __tracepoint_android_vh_set_memory_x;\nint __tracepoint_android_vh_set_memory_rw;\nint __tracepoint_android_vh_set_memory_nx;\nint __tracepoint_android_vh_set_memory_ro;\nint __tracepoint_android_vh_check_bpf_syscall;\nint __tracepoint_android_vh_check_mmap_file;\nint __tracepoint_android_vh_check_file_open;\nstruct lock_class_key rcu_trace_lock_map;\nint ps5169_cfg_usb;\n' > kernel/trace/stub-vendor-hooks.c
+        printf '#include <linux/lockdep.h>\nunsigned long __tracepoint_android_vh_set_memory_x;\nunsigned long __tracepoint_android_vh_set_memory_rw;\nunsigned long __tracepoint_android_vh_set_memory_nx;\nunsigned long __tracepoint_android_vh_set_memory_ro;\nunsigned long __tracepoint_android_vh_check_bpf_syscall;\nunsigned long __tracepoint_android_vh_check_mmap_file;\nunsigned long __tracepoint_android_vh_check_file_open;\nstruct lock_class_key rcu_trace_lock_map;\nint ps5169_cfg_usb;\n' > kernel/trace/stub-vendor-hooks.c
         echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
         # 禁用 EFI（Android 手机内核不需要，且 EFI stub 与旧 LLD 不兼容）
-        echo 'CONFIG_EFI=n' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
-        echo 'CONFIG_EFI_STUB=n' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+        # CONFIG_EFI 在 arch/arm64/Kconfig 中有 default y，必须去掉才能通过 defconfig 禁用
+        sed -i '/config EFI/,/^config/{/default y/d}' arch/arm64/Kconfig
+        echo '# CONFIG_EFI is not set' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
