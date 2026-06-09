@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kernel-builder <builder@github.com>
+Date: Mon, 9 Jun 2026 00:00:00 +0000
+Subject: [PATCH] fix: KVM API mismatch for kernel 4.19 backport
+
+Fix kvm_unmap_hva_range and follow_pte_pmd parameter counts for 4.19.
+
+Signed-off-by: kernel-builder <builder@github.com>
+---
+ virt/kvm/kvm_main.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+@@ -410,7 +410,7 @@
+ 	 * count is also read inside the mmu_lock critical section.
+ 	 */
+ 	kvm->mmu_notifier_count++;
+-	need_tlb_flush = kvm_unmap_hva_range(kvm, range->start, range->end);
++	need_tlb_flush = kvm_unmap_hva_range(kvm, range->start, range->end, 0);
+ 	/* we've to flush the tlb before the pages can be freed */
+ 	if (need_tlb_flush || kvm->tlbs_dirty)
+ 		kvm_flush_remote_tlbs(kvm);
+@@ -1514,7 +1514,7 @@
+ 	spinlock_t *ptl;
+ 	int r;
+ 
+-	r = follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, &ptep, NULL, &ptl);
++	r = follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, &ptl);
+ 	if (r) {
+ 		/*
+ 		 * get_user_pages fails for VM_IO and VM_PFNMAP vmas and does
+@@ -1529,7 +1529,7 @@
+ 		if (r)
+ 			return r;
+ 
+-		r = follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, &ptep, NULL, &ptl);
++		r = follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, &ptl);
+ 		if (r)
+ 			return r;
+ 	}

@@ -86,7 +86,6 @@ jobs:
           ${{ github.workspace }}/kernel_workspace/gcc-64
           ${{ github.workspace }}/kernel_workspace/gcc-32
         key: toolchains-${{ hashFiles('KernelSU/config.env') }}
-        save-always: true
 
     # ========== 缓存：内核源码 ==========
     - name: Cache kernel source
@@ -95,7 +94,6 @@ jobs:
       with:
         path: ${{ github.workspace }}/kernel_workspace/android-kernel
         key: kernel-source-${{ hashFiles('KernelSU/config.env') }}
-        save-always: true
 
     # ========== 缓存：boot 工具 ==========
     - name: Cache boot tools
@@ -107,7 +105,6 @@ jobs:
           ${{ github.workspace }}/kernel_workspace/tools
           ${{ github.workspace }}/kernel_workspace/boot-source.img
         key: boot-tools-${{ hashFiles('KernelSU/config.env') }}
-        save-always: true
 
     - name: 切换python2.7
       if: env.CUT_PYTHON == 'true'
@@ -232,24 +229,26 @@ jobs:
          patch -p0 < lxc.patch
        fi
 
-    - name: 打入DroidSpaces补丁
-      if: env.DROIDSPACES_PATCH == 'true'
+    - name: 应用内核补丁
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "Applying DroidSpaces patches..."
-        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/01.fix_kernel_panic_in_xt_qtaguid.patch ]; then
-          patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/01.fix_kernel_panic_in_xt_qtaguid.patch || echo "Warning: patch 01 may already be applied"
+        PATCH_DIR=$GITHUB_WORKSPACE/KernelSU/patch
+
+        if [ "${{ env.DROIDSPACES_PATCH }}" = "true" ]; then
+          echo "Applying DroidSpaces patches..."
+          for p in "$PATCH_DIR/droidspaces/"*.patch; do
+            [ -f "$p" ] || continue
+            echo "  -> $(basename "$p")"
+            patch -p1 < "$p" || echo "Warning: $(basename "$p") may already be applied"
+          done
         fi
-        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/02.fix_restore\ cgroup\ file\ prefix\ handling\ .patch ]; then
-          patch -p1 < "$GITHUB_WORKSPACE/KernelSU/patch/02.fix_restore cgroup file prefix handling .patch" || echo "Warning: patch 02 may already be applied"
-        fi
-        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch ]; then
-          patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/03.fix_mmu_notifier_event.patch || echo "Warning: patch 03 may already be applied"
-        fi
-        if [ -f $GITHUB_WORKSPACE/KernelSU/patch/04.fix_vdso_ld_n_flag.patch ]; then
-          patch -p1 < $GITHUB_WORKSPACE/KernelSU/patch/04.fix_vdso_ld_n_flag.patch || echo "Warning: patch 04 may already be applied"
-        fi
-        echo "DroidSpaces patches applied successfully."
+
+        echo "Applying build compatibility patches..."
+        for p in "$PATCH_DIR/build-fixes/"*.patch; do
+          [ -f "$p" ] || continue
+          echo "  -> $(basename "$p")"
+          patch -p1 < "$p" || echo "Warning: $(basename "$p") may already be applied"
+        done
 
     - name: 关闭ANDROID_PARANOID_NETWORK配置
       if: env.ANDROID_PARANOID_NETWORK_OFF == 'true'
@@ -257,9 +256,6 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace
         sed -i '/CONFIG_ANDROID_PARANOID_NETWORK/d' android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
         echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
-        
-        
-  
     - name: 开启KSU
       if: env.ENABLE_KERNELSU == 'true'
       run: |
@@ -316,37 +312,9 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-        # 移除旧版 ld，避免与 Ubuntu 24.04 glibc 不兼容
         rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
-        # 修复 VDSO -n 参数兼容 LLD（移除不支持的 flag）
-        sed -i 's/ -n -T/ -T/' arch/arm64/kernel/vdso/Makefile
-        # 修复 VDSO32 -z common-page-size 兼容旧 LLD
-        sed -i 's/-z common-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
-        sed -i 's/-z max-page-size=4096//' arch/arm64/kernel/vdso32/Makefile
-        # 修复 head.S: .ascii 不支持 \x 转义
-        sed -i 's/\\x64"/d"/' arch/arm64/kernel/head.S
-        # 修复 sha1-ce-core.S: 旧 Clang 不支持重定位修饰符（替换为空桩）
-        printf '.text\n.globl sha1_ce_transform\nsha1_ce_transform:\n    ret\n' > arch/arm64/crypto/sha1-ce-core.S
-        # 修复 KVM API 不匹配（backport 冲突）
-        sed -i 's/kvm_unmap_hva_range(kvm, range->start, range->end)/kvm_unmap_hva_range(kvm, range->start, range->end, 0)/' virt/kvm/kvm_main.c
-        sed -i 's/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, \&ptep, NULL, \&ptl)/follow_pte_pmd(vma->vm_mm, addr, NULL, NULL, NULL, \&ptl)/' virt/kvm/kvm_main.c
-        # 定义缺失的 MMU_NOTIFY_UNMAP（kernel 4.19 未定义此枚举值）
-        sed -i '/#define _LINUX_MMU_NOTIFIER_H/ a\#define MMU_NOTIFY_UNMAP 0\n#define MMU_NOTIFY_CLEAR 1' include/linux/mmu_notifier.h
-        # 修复 lockdep: __lock_release 新增 nested 参数未声明
-        sed -i 's/__lock_release(lock, nested, ip)/__lock_release(lock, 0, ip)/' kernel/locking/lockdep.c
-        # 修复 WRITE_ONCE 宏兼容旧 Clang
-        sed -i 's/WRITE_ONCE(current->fail_nth, fail_nth - 1)/(current->fail_nth = fail_nth - 1)/' lib/fault-inject.c
-        # 修复 KernelSU: MODULE_IMPORT_NS 在 kernel 4.19 不存在
-        echo '#define MODULE_IMPORT_NS(ns)' >> include/linux/module.h
-        # 跳过有 DTS bug 的非目标板子（fsa4480 标签冲突）
-        sed -i '/iot-rb5/d' arch/arm64/boot/dts/vendor/qcom/Makefile
-        # 定义缺失的 tracepoint 符号 + lockdep + ps5169
         printf '#include <linux/lockdep.h>\nunsigned long __tracepoint_android_vh_set_memory_x;\nunsigned long __tracepoint_android_vh_set_memory_rw;\nunsigned long __tracepoint_android_vh_set_memory_nx;\nunsigned long __tracepoint_android_vh_set_memory_ro;\nunsigned long __tracepoint_android_vh_check_bpf_syscall;\nunsigned long __tracepoint_android_vh_check_mmap_file;\nunsigned long __tracepoint_android_vh_check_file_open;\nstruct lock_class_key rcu_trace_lock_map;\nint ps5169_cfg_usb;\n' > kernel/trace/stub-vendor-hooks.c
         echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
-        # 禁用 EFI（Android 手机内核不需要，且 EFI stub 与旧 LLD 不兼容）
-        # CONFIG_EFI 在 arch/arm64/Kconfig 中有 default y，必须去掉才能通过 defconfig 禁用
-        sed -i '/^config EFI$/,/^config /{/default y/d}' arch/arm64/Kconfig
-        echo '# CONFIG_EFI is not set' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
