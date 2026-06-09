@@ -13,7 +13,7 @@
 echo "Applying auto-detected build compatibility fixes..."
 
 # ---- detect kernel version ----
-kver=$(grep -E "^VERSION|PATCHLEVEL" Makefile 2>/dev/null | tr -d ' ' | cut -d= -f2 | paste -sd.)
+kver=$(grep -E "^VERSION\s*=|^PATCHLEVEL\s*=" Makefile 2>/dev/null | sed 's/.*=\s*//' | paste -sd.)
 echo "  Kernel version: $kver"
 
 # ---- 1. VDSO: remove -n flag (always safe, LLD compat) ----
@@ -44,15 +44,13 @@ else
     echo "  [05] tracepoint: already patched, skipping"
 fi
 
-# ---- 6. cgroup net_prio: struct cgroup has no id field? ----
-if grep -q '->id;' include/net/netprio_cgroup.h 2>/dev/null \
-   && ! grep -A20 "struct cgroup {" include/linux/cgroup-defs.h 2>/dev/null | grep -q '\<id\>'; then
-    echo "# CONFIG_CGROUP_NET_PRIO is not set (kernel lacks cgroup->id)" >> $GITHUB_WORKSPACE/KernelSU/configs/droidspaces.config 2>/dev/null || true
-    echo "  [06] cgroup: disabled CONFIG_CGROUP_NET_PRIO (cgroup struct lacks id field)"
-elif ! grep -q '->id;' include/net/netprio_cgroup.h 2>/dev/null; then
-    echo "  [06] cgroup: netprio_cgroup.h not used, skipping"
+# ---- 6. cgroup net_prio: disable if cgroup lacks ->id field ----
+if grep -Fq '->id;' include/net/netprio_cgroup.h 2>/dev/null \
+   && ! grep -A20 "struct cgroup {" include/linux/cgroup-defs.h 2>/dev/null | grep -qF 'id;'; then
+    sed -i '/^CONFIG_CGROUP_NET_PRIO=y/d' $GITHUB_WORKSPACE/KernelSU/configs/droidspaces.config 2>/dev/null || true
+    echo "  [06] cgroup: disabled CONFIG_CGROUP_NET_PRIO (struct cgroup lacks id field)"
 else
-    echo "  [06] cgroup: net_prio supported, keeping enabled"
+    echo "  [06] cgroup: net_prio OK, keeping enabled"
 fi
 
 # ---- 7. mmu_notifier: fix enum & MMU_NOTIFY defines (4.19 only) ----
