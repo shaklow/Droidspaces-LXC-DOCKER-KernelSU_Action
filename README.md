@@ -84,6 +84,8 @@ Fork 本仓库，编辑 [`config.env`](config.env) 适配你的设备：
 |------|------|
 | `KERNELSU_TAG` | KernelSU 版本 tag |
 | `DISABLE-LTO` | 禁用 LTO 优化 |
+| `SU_TYPE` | Superuser 方案选择 (kernelsu=sukisu=SukiSU-Ultra) |
+| `SUSU_TAG` | SukiSU-Ultra 版本 tag |
 | `DISABLE_CC_WERROR` | 禁用编译警告即错误 |
 | `ADD_KPROBES_CONFIG` | 自动注入 Kprobes 配置 |
 | `ADD_OVERLAYFS_CONFIG` | 自动注入 OverlayFS 配置 |
