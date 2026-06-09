@@ -350,7 +350,11 @@ jobs:
             echo "CONFIG_KALLSYMS_ALL=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             if echo "$kver" | grep -q "^4\." ; then
                 sed -i 's/access_ok(\([^,)]*\), \([^)]*\))/access_ok(VERIFY_READ, \1, \2)/g' drivers/kernelsu/kpm/kpm.c
-                echo "  kpm: fixed access_ok 2-arg → 3-arg for 4.x kernel"
+                sed -i '1i#define REMAP_FILE_DEDUP 0' drivers/kernelsu/infra/file_wrapper.c
+                sed -i '/ksu_wrapper_iopoll/,/^}$/d' drivers/kernelsu/infra/file_wrapper.c
+                sed -i '/ksu_wrapper_remap_file_range/,/^}$/d' drivers/kernelsu/infra/file_wrapper.c
+                sed -i '/p->ops\.iopoll *=/d;/p->ops\.remap_file_range *=/d' drivers/kernelsu/infra/file_wrapper.c
+                echo "  sukisu: applied 4.x compatibility fixes (kpm + file_wrapper)"
             fi
         fi
 
