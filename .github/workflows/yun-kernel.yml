@@ -340,8 +340,9 @@ jobs:
         # 定义缺失的 tracepoint 符号 + lockdep + ps5169
         printf '#include <linux/lockdep.h>\nint __tracepoint_android_vh_set_memory_x;\nint __tracepoint_android_vh_set_memory_rw;\nint __tracepoint_android_vh_set_memory_nx;\nint __tracepoint_android_vh_set_memory_ro;\nint __tracepoint_android_vh_check_bpf_syscall;\nint __tracepoint_android_vh_check_mmap_file;\nint __tracepoint_android_vh_check_file_open;\nstruct lock_class_key rcu_trace_lock_map;\nint ps5169_cfg_usb;\n' > kernel/trace/stub-vendor-hooks.c
         echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
-        # 修复 EFI stub LLD 重定位（ABSOLUTE(.) → .）
-        sed -i 's/ABSOLUTE(\.)/./g' arch/arm64/kernel/vmlinux.lds.S
+        # 禁用 EFI（Android 手机内核不需要，且 EFI stub 与旧 LLD 不兼容）
+        echo 'CONFIG_EFI=n' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+        echo 'CONFIG_EFI_STUB=n' >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
         
