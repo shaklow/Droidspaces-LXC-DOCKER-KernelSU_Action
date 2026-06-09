@@ -7,7 +7,7 @@
 在 `config.env` 中设置：
 
 ```ini
-BUILD_FIXES=sm8250-4.19   # SM8250 + 4.19 内核
+BUILD_FIXES=sm8250-4.19   # SM8250 + 4.19 内核(LineageOS)
 BUILD_FIXES=none           # 禁用所有修复
 ```
 
