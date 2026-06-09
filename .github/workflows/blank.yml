@@ -1,7 +1,39 @@
 name: 大容量云编译
 on:
   workflow_dispatch:
+    inputs:
+      ENABLE_KERNELSU:
+        description: '启用 KernelSU'
+        type: boolean
+        default: true
+      LXC_DOCKER:
+        description: '开启 LXC and DOCKER 支持'
+        type: boolean
+        default: true
+      ENABLE_KVM:
+        description: '开启 KVM 虚拟化'
+        type: boolean
+        default: true
+      DROIDSPACES_PATCH:
+        description: '打入 DroidSpaces 补丁'
+        type: boolean
+        default: true
+      DROIDSPACES_CONFIG:
+        description: '应用 DroidSpaces 内核配置'
+        type: boolean
+        default: true
+      DROIDSPACES_ADDITIONAL_CONFIG:
+        description: '应用 DroidSpaces 额外配置 (UFW/Fail2Ban/IPSET)'
+        type: boolean
+        default: true
 
 jobs:
   build-kernel:
     uses: ./.github/workflows/yun-kernel.yml
+    with:
+      ENABLE_KERNELSU: ${{ inputs.ENABLE_KERNELSU }}
+      LXC_DOCKER: ${{ inputs.LXC_DOCKER }}
+      ENABLE_KVM: ${{ inputs.ENABLE_KVM }}
+      DROIDSPACES_PATCH: ${{ inputs.DROIDSPACES_PATCH }}
+      DROIDSPACES_CONFIG: ${{ inputs.DROIDSPACES_CONFIG }}
+      DROIDSPACES_ADDITIONAL_CONFIG: ${{ inputs.DROIDSPACES_ADDITIONAL_CONFIG }}

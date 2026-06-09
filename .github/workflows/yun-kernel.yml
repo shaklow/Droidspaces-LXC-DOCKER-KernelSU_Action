@@ -4,6 +4,25 @@ on:
     types: [started]
 
   workflow_call:
+    inputs:
+      ENABLE_KERNELSU:
+        type: string
+        default: ''
+      LXC_DOCKER:
+        type: string
+        default: ''
+      ENABLE_KVM:
+        type: string
+        default: ''
+      DROIDSPACES_PATCH:
+        type: string
+        default: ''
+      DROIDSPACES_CONFIG:
+        type: string
+        default: ''
+      DROIDSPACES_ADDITIONAL_CONFIG:
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -32,9 +51,10 @@ jobs:
           fetch-depth: 0
     - name: 工作配置
       run: |
-        echo "LXC_DOCKER=$(cat KernelSU/config.env | grep -w "LXC_DOCKER" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        cfg() { local k=$1 v="$2"; local cv=$(grep "^${k}=" KernelSU/config.env | head -n 1 | cut -d "=" -f 2); if [ -n "$cv" ]; then echo "${k}=${cv}" >> $GITHUB_ENV; elif [ -n "$v" ]; then echo "${k}=${v}" >> $GITHUB_ENV; else echo "${k}=false" >> $GITHUB_ENV; fi; }
+        cfg "LXC_DOCKER" "${{ inputs.LXC_DOCKER }}"
         echo "METHOD_OK=$(cat KernelSU/config.env | grep -w "METHOD_OK" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-        echo "ENABLE_KVM=$(cat KernelSU/config.env | grep -w "ENABLE_KVM" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        cfg "ENABLE_KVM" "${{ inputs.ENABLE_KVM }}"
         echo "LXC_PATCH=$(cat KernelSU/config.env | grep -w "LXC_PATCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ANDROID_PARANOID_NETWORK_OFF=$(cat KernelSU/config.env | grep -w "ANDROID_PARANOID_NETWORK_OFF" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "CUT_PYTHON=$(cat KernelSU/config.env | grep -w "CUT_PYTHON" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
@@ -54,7 +74,7 @@ jobs:
         echo "CLANG_VERSION=$(cat KernelSU/config.env | grep -w "CLANG_VERSION" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ENABLE_GCC_ARM64=$(cat KernelSU/config.env | grep -w "ENABLE_GCC_ARM64" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ENABLE_GCC_ARM32=$(cat KernelSU/config.env | grep -w "ENABLE_GCC_ARM32" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-        echo "ENABLE_KERNELSU=$(cat KernelSU/config.env | grep -w "ENABLE_KERNELSU" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        cfg "ENABLE_KERNELSU" "${{ inputs.ENABLE_KERNELSU }}"
         echo "KERNELSU_TAG=$(cat KernelSU/config.env | grep -w "KERNELSU_TAG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ADD_KPROBES_CONFIG=$(cat KernelSU/config.env | grep -w "ADD_KPROBES_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "DISABLE-LTO=$(cat KernelSU/config.env | grep -w "DISABLE-LTO" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
@@ -64,9 +84,9 @@ jobs:
         echo "NEED_DTBO=$(cat KernelSU/config.env | grep -w "NEED_DTBO" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "BUILD_BOOT_IMG=$(cat KernelSU/config.env | grep -w "BUILD_BOOT_IMG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "SOURCE_BOOT_IMAGE=$(cat KernelSU/config.env | grep -w "SOURCE_BOOT_IMAGE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-        echo "DROIDSPACES_PATCH=$(cat KernelSU/config.env | grep -w "DROIDSPACES_PATCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-        echo "DROIDSPACES_CONFIG=$(cat KernelSU/config.env | grep -w "DROIDSPACES_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-        echo "DROIDSPACES_ADDITIONAL_CONFIG=$(cat KernelSU/config.env | grep -w "DROIDSPACES_ADDITIONAL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        cfg "DROIDSPACES_PATCH" "${{ inputs.DROIDSPACES_PATCH }}"
+        cfg "DROIDSPACES_CONFIG" "${{ inputs.DROIDSPACES_CONFIG }}"
+        cfg "DROIDSPACES_ADDITIONAL_CONFIG" "${{ inputs.DROIDSPACES_ADDITIONAL_CONFIG }}"
 
     - name: 构建编译内核环境
       run: |
