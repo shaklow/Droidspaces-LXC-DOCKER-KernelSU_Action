@@ -344,9 +344,14 @@ jobs:
             echo "CONFIG_CC_WERROR=n" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
         if [ "${{ env.SU_TYPE }}" = "sukisu" ]; then
+            kver=$(grep -E "^VERSION\s*=|^PATCHLEVEL\s*=" Makefile | sed 's/.*=\s*//' | paste -sd.)
             echo "CONFIG_KPM=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KALLSYMS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KALLSYMS_ALL=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+            if echo "$kver" | grep -q "^4\." ; then
+                sed -i 's/access_ok(VERIFY_READ, \([^,]*\), [^)]*)/access_ok(VERIFY_READ, \1)/g' drivers/kernelsu/kpm/kpm.c
+                echo "  kpm: fixed access_ok 3-arg → 2-arg for 4.x kernel"
+            fi
         fi
 
     - name: 应用DroidSpaces内核配置
