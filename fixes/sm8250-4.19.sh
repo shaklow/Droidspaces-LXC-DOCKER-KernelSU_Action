@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build compatibility fixes for SM8250 (Kona) + Linux 4.19 + clang-r353983c
+# Build compatibility fixes for SM8250 (Kona) + Linux 4.19
 # ---------------------------------------------------------------------------
 # Usage: set BUILD_FIXES=sm8250-4.19 in config.env, or source this file directly.
 #

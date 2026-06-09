@@ -34,6 +34,18 @@ jobs:
       CCACHE_NOHASHDIR: "true"
       CCACHE_HARDLINK: "true"
     steps:
+    - name: 清理无用包
+      if: env.REMOVE_UNUSED_PACKAGES == 'true'
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: false
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: true
+        swap-storage: false
+
     - name: 大容量空间支持
       uses: easimon/maximize-build-space@master
       with:
@@ -77,12 +89,16 @@ jobs:
         echo "ENABLE_GCC_ARM32=$(cat KernelSU/config.env | grep -w "ENABLE_GCC_ARM32" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         cfg "ENABLE_KERNELSU" "${{ inputs.ENABLE_KERNELSU }}"
         echo "KERNELSU_TAG=$(cat KernelSU/config.env | grep -w "KERNELSU_TAG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "KSU_EXPECTED_SIZE=$(cat KernelSU/config.env | grep -w "KSU_EXPECTED_SIZE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "KSU_EXPECTED_HASH=$(cat KernelSU/config.env | grep -w "KSU_EXPECTED_HASH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "APPLY_KSU_PATCH=$(cat KernelSU/config.env | grep -w "APPLY_KSU_PATCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ADD_KPROBES_CONFIG=$(cat KernelSU/config.env | grep -w "ADD_KPROBES_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "DISABLE-LTO=$(cat KernelSU/config.env | grep -w "DISABLE-LTO" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ADD_OVERLAYFS_CONFIG=$(cat KernelSU/config.env | grep -w "ADD_OVERLAYFS_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "DISABLE_CC_WERROR=$(cat KernelSU/config.env | grep -w "DISABLE_CC_WERROR" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "ENABLE_CCACHE=$(cat KernelSU/config.env | grep -w "ENABLE_CCACHE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "NEED_DTBO=$(cat KernelSU/config.env | grep -w "NEED_DTBO" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+        echo "REMOVE_UNUSED_PACKAGES=$(cat KernelSU/config.env | grep -w "REMOVE_UNUSED_PACKAGES" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "BUILD_BOOT_IMG=$(cat KernelSU/config.env | grep -w "BUILD_BOOT_IMG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "SOURCE_BOOT_IMAGE=$(cat KernelSU/config.env | grep -w "SOURCE_BOOT_IMAGE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         cfg "DROIDSPACES_PATCH" "${{ inputs.DROIDSPACES_PATCH }}"
@@ -134,10 +150,10 @@ jobs:
        sudo ln -s /bin/python2.7 /bin/python
       
     - name: 下载Clang-aosp编译器
-      if: env.USE_CUSTOM_CLANG == 'false'
+      if: env.USE_CUSTOM_CLANG == 'false' && steps.cache-tools.outputs.cache-hit != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        mkdir clang-aosp
+        mkdir -p clang-aosp
         wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.CLANG_BRANCH }}/clang-${{ env.CLANG_VERSION }}.tar.gz
         tar -C clang-aosp/ -zxvf clang-${{ env.CLANG_VERSION }}.tar.gz
 
@@ -281,12 +297,21 @@ jobs:
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         rm -rf KernelSU
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
+        if [ ${{ env.APPLY_KSU_PATCH }} = true ]; then
+          bash $GITHUB_WORKSPACE/KernelSU/patches/patches.sh
+          if grep -q "CONFIG_KSU" arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}; then
+            sed -i 's/# CONFIG_KSU is not set/CONFIG_KSU=y/g' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+            sed -i 's/CONFIG_KSU=n/CONFIG_KSU=y/g' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+          else
+            echo "CONFIG_KSU=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
+          fi
+        fi
         echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
 
     - name: 开启KSU补充内核配置
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        if [ ${{ env.ADD_KPROBES_CONFIG }} = true ]; then
+        if [ ${{ env.ADD_KPROBES_CONFIG }} = true ] && [ ${{ env.APPLY_KSU_PATCH }} != true ]; then
 
             echo "CONFIG_MODULES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
@@ -334,6 +359,10 @@ jobs:
         rm -f $GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin/ld
         export KBUILD_BUILD_HOST=Github-Action
         export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        if [ ! -z "${{ env.KSU_EXPECTED_SIZE }}" ] && [ ! -z "${{ env.KSU_EXPECTED_HASH }}" ]; then
+          export KSU_EXPECTED_SIZE=${{ env.KSU_EXPECTED_SIZE }}
+          export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
+        fi
         
         if [ ${{ env.METHOD_OK }} = A ]; then
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
