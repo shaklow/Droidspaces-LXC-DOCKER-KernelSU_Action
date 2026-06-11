@@ -302,11 +302,6 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         rm -rf KernelSU
-        if [ ${{ env.APPLY_KSU_PATCH }} != true ]; then
-          for f in fs/exec.c fs/open.c fs/read_write.c fs/stat.c drivers/input/input.c; do
-            [ -f "$f" ] && sed -i '/ksu_/d' "$f" || true
-          done
-        fi
         if [ "${{ env.SU_TYPE }}" = "sukisu" ]; then
           echo "Installing SukiSU-Ultra (${{ env.SUSU_TAG }})..."
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s ${{ env.SUSU_TAG }}
