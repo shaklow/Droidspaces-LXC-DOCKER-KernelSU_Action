@@ -446,21 +446,30 @@ jobs:
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' AnyKernel3/anykernel.sh
         sed -i 's!block=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;!block=auto;!g' AnyKernel3/anykernel.sh
         sed -i 's/is_slot_device=0;/is_slot_device=auto;/g' AnyKernel3/anykernel.sh
+        sed -i "s/^kernel=.*/kernel=${{ env.KERNEL_IMAGE_NAME }}/" AnyKernel3/anykernel.sh
         cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
         if [ ${{ env.CHECK_DTBO_IS_OK }} = true ]; then
             cp android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img AnyKernel3/
         fi
+        echo "AnyKernel3 kernel filename: ${{ env.KERNEL_IMAGE_NAME }}"
+        grep "^kernel=" AnyKernel3/anykernel.sh
         rm -rf AnyKernel3/.git* AnyKernel3/README.md
 
     - name: 制作合成新的内核镜像
       if: env.HAVE_SOURCE_BOOT_IMAGE == 'true' && env.CHECK_FILE_IS_OK == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        tools/unpack_bootimg.py --boot_img boot-source.img
-        cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} out/kernel
-        tools/mkbootimg.py ${{ env.FORMAT_MKBOOTING }} -o boot.img
+        rm -rf out_unpack && mkdir -p out_unpack
+        tools/unpack_bootimg.py --boot_img boot-source.img --out out_unpack
+        echo "Unpacked boot image contents:"
+        ls -la out_unpack/
+        cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} out_unpack/kernel
+        MKARGS=$(echo "${{ env.FORMAT_MKBOOTING }}" | sed 's|--kernel out/kernel|--kernel out_unpack/kernel|g; s|--ramdisk out/ramdisk|--ramdisk out_unpack/ramdisk|g; s|--dtb out/dtb|--dtb out_unpack/dtb|g; s|--second out/second|--second out_unpack/second|g')
+        echo "mkbootimg args: $MKARGS"
+        tools/mkbootimg.py $MKARGS -o boot.img
         if [ -f boot.img ]; then
             echo "MAKE_BOOT_IMAGE_IS_OK=true" >> $GITHUB_ENV
+            echo "Boot image size: $(du -h boot.img | cut -f1)"
         else
             echo "Boot image is empty"
             exit 1
