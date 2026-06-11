@@ -64,13 +64,26 @@ printf '#include <linux/lockdep.h>\nunsigned long __tracepoint_android_vh_set_me
 echo 'obj-y += stub-vendor-hooks.o' >> kernel/trace/Makefile
 echo "  [13] tracepoint: created stub-vendor-hooks"
 
-# ---- 14. depot_save_stack: Flicker kernel backported 3-arg API ----
+# ---- 14. Flicker old-style KSU hooks: define as false for SukiSU compat ----
+KSU_HOOKS="ksu_vfs_read_hook ksu_execveat_hook ksu_input_hook"
+NEED_KSU_HOOKS=""
+for h in $KSU_HOOKS; do
+    if grep -rl "$h" fs/ drivers/input/ 2>/dev/null | grep -q .; then NEED_KSU_HOOKS=yes; break; fi
+done
+if [ "$NEED_KSU_HOOKS" = "yes" ]; then
+    printf 'bool ksu_vfs_read_hook;\nbool ksu_execveat_hook;\nbool ksu_input_hook;\n' >> kernel/trace/stub-vendor-hooks.c
+    echo "  [14] ksu: defined stub hook flags for Flicker kernel"
+else
+    echo "  [14] ksu: no old-style hooks found, skipping"
+fi
+
+# ---- 15. depot_save_stack: Flicker kernel backported 3-arg API ----
 if grep -q "pid_t pid" include/linux/stackdepot.h 2>/dev/null; then
     sed -i 's/depot_save_stack(&dummy, GFP_KERNEL)/depot_save_stack(\&dummy, GFP_KERNEL, 0)/' mm/page_owner.c
     sed -i 's/depot_save_stack(\&trace, flags)/depot_save_stack(\&trace, flags, 0)/' mm/page_owner.c
-    echo "  [14] page_owner: fixed depot_save_stack 2-arg → 3-arg (Flicker kernel backport)"
+    echo "  [15] page_owner: fixed depot_save_stack 2-arg → 3-arg (Flicker kernel backport)"
 else
-    echo "  [14] page_owner: stock stackdepot, skipping"
+    echo "  [15] page_owner: stock stackdepot, skipping"
 fi
 
 echo "SM8250-4.19 fixes applied successfully."
