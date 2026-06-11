@@ -311,7 +311,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s ${{ env.KERNELSU_TAG }}
           echo "UPLOADNAME=-KernelSU" >> $GITHUB_ENV
         fi
-        if [ ${{ env.APPLY_KSU_PATCH }} = true ]; then
+        if [ "${{ env.APPLY_KSU_PATCH }}" = "true" ]; then
           bash $GITHUB_WORKSPACE/KernelSU/patches/patches.sh
           if grep -q "CONFIG_KSU" arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}; then
             sed -i 's/# CONFIG_KSU is not set/CONFIG_KSU=y/g' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
@@ -324,23 +324,23 @@ jobs:
     - name: 开启SU补充内核配置
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        if [ ${{ env.ADD_KPROBES_CONFIG }} = true ] && [ ${{ env.APPLY_KSU_PATCH }} != true ]; then
+        if [ "${{ env.ADD_KPROBES_CONFIG }}" = "true" ] && [ "${{ env.APPLY_KSU_PATCH }}" != "true" ]; then
 
             echo "CONFIG_MODULES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_HAVE_KPROBES=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_KPROBE_EVENTS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
-        if [ ${{ env.ADD_OVERLAYFS_CONFIG }} = true ]; then
+        if [ "${{ env.ADD_OVERLAYFS_CONFIG }}" = "true" ]; then
             echo "CONFIG_OVERLAY_FS=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
-        if [ ${{ env.DISABLE-LTO }} = true ]; then
+        if [ "${{ env.DISABLE-LTO }}" = "true" ]; then
             sed -i 's/CONFIG_LTO=y/CONFIG_LTO=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             sed -i 's/CONFIG_LTO_CLANG=y/CONFIG_LTO_CLANG=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             sed -i 's/CONFIG_THINLTO=y/CONFIG_THINLTO=n/' arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "CONFIG_LTO_NONE=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
-        if [ ${{ env.DISABLE_CC_WERROR }} = true ]; then
+        if [ "${{ env.DISABLE_CC_WERROR }}" = "true" ]; then
             echo "CONFIG_CC_WERROR=n" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         fi
         if [ "${{ env.SU_TYPE }}" = "sukisu" ]; then
@@ -368,12 +368,12 @@ jobs:
     - name: 应用DroidSpaces内核配置
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        if [ ${{ env.DROIDSPACES_CONFIG }} = true ]; then
+        if [ "${{ env.DROIDSPACES_CONFIG }}" = "true" ]; then
             echo "Applying DroidSpaces kernel config..."
             cat $GITHUB_WORKSPACE/KernelSU/configs/droidspaces.config >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "DroidSpaces kernel config applied."
         fi
-        if [ ${{ env.DROIDSPACES_ADDITIONAL_CONFIG }} = true ]; then
+        if [ "${{ env.DROIDSPACES_ADDITIONAL_CONFIG }}" = "true" ]; then
             echo "Applying DroidSpaces additional config (UFW/Fail2Ban/IPSET)..."
             cat $GITHUB_WORKSPACE/KernelSU/configs/droidspaces-additional.config >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
             echo "DroidSpaces additional config applied."
@@ -398,9 +398,9 @@ jobs:
           export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
         fi
         
-        if [ ${{ env.METHOD_OK }} = A ]; then
+        if [ "${{ env.METHOD_OK }}" = "A" ]; then
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
-            if [ ${{ env.ENABLE_CCACHE }} = true ]; then
+            if [ "${{ env.ENABLE_CCACHE }}" = "true" ]; then
             make -j$(nproc --all) CC="ccache clang" O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
             else
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
@@ -408,9 +408,9 @@ jobs:
         fi
         
         
-        if [ ${{ env.METHOD_OK }} = B ]; then
+        if [ "${{ env.METHOD_OK }}" = "B" ]; then
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} CROSS_COMPILE="aarch64-linux-gnu-" CROSS_COMPILE_ARM32="arm-linux-gnueabi-" ${{ env.KERNEL_CONFIG }}
-            if [ ${{ env.ENABLE_CCACHE }} = true ]; then
+            if [ "${{ env.ENABLE_CCACHE }}" = "true" ]; then
             make -j$(nproc --all) CC="ccache clang" O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} CROSS_COMPILE="aarch64-linux-gnu-" CROSS_COMPILE_ARM32="arm-linux-gnueabi-" ${{ env.EXTRA_CMDS }} ${{ env.EXTRA_CMDT }} ${{ env.EXTRA_CMDU }}
             else
             make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} CROSS_COMPILE="aarch64-linux-gnu-" CROSS_COMPILE_ARM32="arm-linux-gnueabi-" ${{ env.EXTRA_CMDS }} ${{ env.EXTRA_CMDT }} ${{ env.EXTRA_CMDU }}
@@ -429,7 +429,7 @@ jobs:
            echo "Kernel output file is empty"
            exit 1
        fi
-       if [ ${{ env.NEED_DTBO }} = true ]; then
+       if [ "${{ env.NEED_DTBO }}" = "true" ]; then
            if [ -f android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img ]; then
                echo "CHECK_DTBO_IS_OK=true" >> $GITHUB_ENV
            else
@@ -448,7 +448,7 @@ jobs:
         sed -i 's/is_slot_device=0;/is_slot_device=auto;/g' AnyKernel3/anykernel.sh
         sed -i "s/^kernel=.*/kernel=${{ env.KERNEL_IMAGE_NAME }}/" AnyKernel3/anykernel.sh
         cp android-kernel/out/arch/${{ env.ARCH }}/boot/${{ env.KERNEL_IMAGE_NAME }} AnyKernel3/
-        if [ ${{ env.CHECK_DTBO_IS_OK }} = true ]; then
+        if [ "${{ env.CHECK_DTBO_IS_OK }}" = "true" ]; then
             cp android-kernel/out/arch/${{ env.ARCH }}/boot/dtbo.img AnyKernel3/
         fi
         echo "AnyKernel3 kernel filename: ${{ env.KERNEL_IMAGE_NAME }}"
